@@ -4,56 +4,69 @@ import cv2
 
 from preprocess import normalize_image
 from preprocess import blur_image
+
 from detect_stars import detect_stars
+
+from utils import save_output_image
+from utils import save_star_coordinates
 
 
 # FITS dosyasını aç
 hdul = fits.open("../data/HorseHead.fits")
 
-# görüntü datasını al
 image_data = hdul[0].data
 
-# dosyayı kapat
 hdul.close()
 
 
-# normalize et
+# preprocessing
 normalized = normalize_image(image_data)
 
-# blur uygula
 blurred = blur_image(normalized)
 
 
-# yıldız tespiti
+# detection
 contours, thresh = detect_stars(blurred)
 
 
-# renkli görüntü oluştur
+# renkli çıktı oluştur
 output = cv2.cvtColor(
     blurred,
     cv2.COLOR_GRAY2BGR
 )
 
 
-# yıldızları işaretle
+# yıldız merkezlerini çiz
 for contour in contours:
 
-    x, y, w, h = cv2.boundingRect(contour)
+    M = cv2.moments(contour)
 
-    cv2.rectangle(
-        output,
-        (x, y),
-        (x + w, y + h),
-        (0, 255, 0),
-        1
-    )
+    if M["m00"] != 0:
+
+        cx = int(M["m10"] / M["m00"])
+        cy = int(M["m01"] / M["m00"])
+
+        cv2.circle(
+            output,
+            (cx, cy),
+            3,
+            (0,255,0),
+            -1
+        )
+
+
+# çıktı kaydet
+save_output_image(output)
+
+# csv kaydet
+save_star_coordinates(contours)
 
 
 # yıldız sayısı
 print(f"Detected Stars: {len(contours)}")
 
 
-# sonucu göster
+# görselleştir
 plt.figure(figsize=(10,10))
 
 plt.imshow(output)
